@@ -36,15 +36,15 @@ M = transpose(getSylvesterMatrix(plantNum, plantDen));
 function sylvesterMatrix = getSylvesterMatrix(num, den)
     
     augmentedDen = [zeros(length(num) - length(den)) ; den];
-    n = length(den) - 1;
-    sylvesterMatrix = zeros(2 * n + 1, 2 * n + 2);
-    Mden = zeros(2 * n + 1, n + 1);
+    
+    sylvesterMatrix = zeros((2 * length(den) - 1) + 2, (2 * length(den) - 1) + 2);
+    Mden = zeros((2 * length(den) - 1) + 2, (length(den) - 1) + 1);
     Mnum = Mden;
 
     denTempVector = zeros(1,length(augmentedDen))';
     numTempVector = zeros(1,length(num))';
 
-    for i=1:(2 * n + 1)
+    for i=1:(2 * length(den) - 1)
         if (i > length(den))
             denValue = 0;
             numValue =0;
