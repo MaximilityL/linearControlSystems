@@ -19,7 +19,7 @@ plantNum = sym2poly(2.25 * (s + 1) * (s - 2))';
 plantDen = sym2poly(s * (s^2 - 9))';
 
 
-wantedPoles = [0 , -2, -5, -10, -2 + 3*i , -2 - 3*i]; % 5 Poles that we want
+wantedPoles = [-10 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 5 Poles that we want
 
 deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
 
@@ -40,24 +40,46 @@ controllerDen = theta(1:floor(length(theta) / 2));
 P = tf(plantNum, plantDen);
 C = tf(controllerNum, [controllerDen, 0]);
 
+
+
+T = (P * C) / (1 + (P * C));
+S = 1 / (1 + (P * C));
+Tc = C / (1 + (P * C));
+Td = P / (1 + (P * C));
+
+
+t = 0:0.001:10;
+
+Kr = 1;
+Kd = 0.2;
+startTime = 2;
+delayTime = 0.1;
+r = zeros(length(t),1);
+d = r;
+smallSinus = 0.1*sin(t);
+n = awgn(smallSinus,10,'measured');
+
+r(t > startTime) = Kr;
+d(t > (startTime + delayTime)) = - Kd;
+
+yr = lsim(T,r,t);
+yd = lsim(Td,d,t);
+yn = lsim(T,n,t);
+
+y = yr + yd - yn;
+
+figure
+plot(t,yn);
+
 L = P*C;
-
-figure
-step(P*C / (1 + P*C));
-
 sys = feedback(L,1);
+figure
+step (T);
 
-t = 0:0.004:8;
-
-u = zeros(length(t),1);
-
-u(t>2) = 1;
+yr = lsim(sys,r,t);
 
 figure
-lsim(sys,u,t);
-grid
-
-
+plot(t,yd);
 %% Problem 5 - SVD
 
 clear all
@@ -233,4 +255,3 @@ function Ms3 = getMs3FromMs(Ms)
 end
 
 % function deltaS = getCharectaristicVector
-    
