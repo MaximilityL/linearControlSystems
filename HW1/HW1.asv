@@ -4,71 +4,29 @@ clear all
 close all
 clc
 
-initGraphSettings();
-
 syms s;
 
 plantNum = sym2poly(2.25 * (s + 1) * (s - 2))';
 plantDen = sym2poly(s * (s^2 - 9))';
 
+symbolicPlant = (2.25 * (s + 1) * (s - 2)) / (s * (s^2 - 9));
 
 wantedPoles = [-2 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 6 Poles that we want
 
-deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
+symbolicController = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant, wantedPoles);
 
-Ms = getSylvesterMatrix(plantNum, plantDen);
-Ms1 = getMs1FromMs(Ms);
-Ms2 = getMs2FromMs(Ms);
-Ms3 = getMs3FromMs(Ms);
+[T, S, Tc, Td] = getTheGangOfFourFromForwardLoop(symbolicController, symbolicPlant);
 
-theta = Ms3 \ deltaS;
-
-plantNum = plantNum';
-plantDen = plantDen';
-theta = theta';
-
-controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
-controllerDen = theta(1:floor(length(theta) / 2));
-
-controllerDen = [controllerDen, 0];
-C = tf(controllerNum, controllerDen);
-
-
-plantNumSym = poly2sym(plantNum', s);
-plantDenSym = poly2sym(plantDen', s);
-PSym = plantNumSym / plantDenSym;
-
-controllerNumSym = poly2sym(controllerNum, s);
-controllerDenSym = poly2sym(controllerDen, s);
-
-CSym = controllerNumSym / controllerDenSym;
-
-TSym = (CSym * PSym) / (1 + (CSym * PSym));
-SSym = 1 / (1 + (CSym * PSym));
-TcSym = CSym / (1 + (CSym * PSym));
-TdSym = PSym / (1 + (CSym * PSym));
-
-T = sym2tf(TSym);
-S = sym2tf(SSym);
-Tc = sym2tf(TcSym);
-Td = sym2tf(TdSym);
-
-t = 0:0.001:10;
-
-Kr = 10;
-Kd = 5;
+testPeriod = 10;
 startTime = 2;
-delayTime = 0.2;
-r = zeros(length(t),1);
-d = r;
+referenceAmplitude = 10;
+disturbanceAmplitude = 2;
+disturbanceDelay = 0.2;
+noiseSTD = 0.5;
 
-mu = 0; % bias
-sigma = 0.5; % std
+[t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD);
 
-n = normrnd(mu, sigma,[1, length(t)]);
-
-r(t > startTime) = Kr;
-d(t > (startTime + delayTime)) = - Kd;
+calculateAndPrintOutputResponcesForInputSet()
 
 figure
 lsim(T,r,t);
@@ -98,7 +56,7 @@ title("y = yr + yd - yn")
 xlabel('Time [sec]');
 ylabel('Amplitude')
 
-
+printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
 
 
 
@@ -133,18 +91,6 @@ ylabel('Amplitude')
 clear all
 close all
 clc
-
-
-set(0,'DefaultTextInterpreter','latex');
-set(0,'defaultAxesTickLabelInterpreter','latex');
-set(groot, 'defaultLegendInterpreter','latex');
-set(0, 'DefaultLineLineWidth', 1.2);
-% Increase font size for titles and labels
-titleFontSize = 2;  % Adjust the desired font size
-labelFontSize = 1.5;  % Adjust the desired font size for labels
-set(0, 'DefaultAxesTitleFontSize', titleFontSize);
-set(0, 'DefaultAxesLabelFontSize', labelFontSize);
-
 
 display('Problem 5 - SVD')
 
@@ -359,30 +305,123 @@ function G = sym2tf(g)
     %------------- END OF CODE --------------
 end
 
+function printResponsePlot(titleName, time, input, inputName, output, outputName)
 
-function initGraphSettings()
-    set(0,'DefaultTextInterpreter','latex');
-    set(0,'defaultAxesTickLabelInterpreter','latex');
-    set(groot, 'defaultLegendInterpreter','latex');
-    set(0, 'DefaultLineLineWidth', 1.2);
-    % Increase font size for titles and labels
-    titleFontSize = 3;  % Adjust the desired font size
-    labelFontSize = 2;  % Adjust the desired font size for labels
-    set(0, 'DefaultAxesTitleFontSize', titleFontSize);
-    set(0, 'DefaultAxesLabelFontSize', labelFontSize);
-    % Set the background color of the plot to white
-    set(0, 'DefaultFigureColor', 'w');
+    % Create a figure and set it to full screen
+    hFig = figure('Position', get(0, 'Screensize'));
+
+    plot(time, input, 'Color', [0.5, 0.5, 0.5]); % Gray color for input
+    hold on;
+    plot(time, output, 'Color', [0, 0, 1]);        % Blue color for output
+    hold off;
+
+    grid;
+    fontSize = 20;
+    legend({inputName, outputName}, 'Interpreter', 'latex', 'FontSize', fontSize);
+    title(titleName, 'Interpreter', 'latex', 'FontSize', fontSize);
+    xlabel('Time [sec]', 'Interpreter', 'latex', 'FontSize', fontSize);
+    ylabel('Amplitude', 'Interpreter', 'latex', 'FontSize', fontSize);
+
+    % Set the DPI (dots per inch) for the exported image
+    dpi = 1000;
+
+    % Save the plot as a JPG with the title as the filename
+    filename = strrep(titleName, ' ', '_'); % Replace spaces with underscores
+    print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
+
 end
 
+function Csym = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant, wantedPoles)
 
-function printResponsePlot(titleName,xLabelName,yLabelName,)
-    legendFontSize = 2;
+syms s;
+[plantNum, plantDen] = extractCoefficients(symbolicPlant);
 
+plantNum = plantNum';
+plantDen = plantDen';
 
+deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
 
+Ms = getSylvesterMatrix(plantNum, plantDen);
+Ms1 = getMs1FromMs(Ms);
+Ms2 = getMs2FromMs(Ms);
+Ms3 = getMs3FromMs(Ms);
 
+theta = Ms3 \ deltaS;
 
-    set(gca, 'FontSize', legendFontSize);
+theta = theta';
 
+controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
+controllerDen = theta(1:floor(length(theta) / 2));
 
+controllerDen = [controllerDen, 0];
+
+controllerNumSym = poly2sym(controllerNum, s);
+controllerDenSym = poly2sym(controllerDen, s);
+
+Csym = controllerNumSym / controllerDenSym;
+
+end
+
+function [numerator, denominator] = extractCoefficients(transferFunction)
+    % Input:
+    %   transferFunction: Symbolic expression representing a transfer function
+    % Output:
+    %   numerator: Coefficients of the numerator
+    %   denominator: Coefficients of the denominator
+
+    % Extract the coefficients of the numerator and denominator
+    [numerator, denominator] = numden(transferFunction);
+
+    % Convert to vectors
+    numerator = sym2poly(numerator);
+    denominator = sym2poly(denominator);
+end
+
+function [T, S, Tc, Td] = getTheGangOfFourFromForwardLoop(symbolicController, symbolicPlant)
+
+    TSym = (symbolicController * symbolicPlant) / (1 + (symbolicController * symbolicPlant));
+    SSym = 1 / (1 + (symbolicController * symbolicPlant));
+    TcSym = symbolicController / (1 + (symbolicController * symbolicPlant));
+    TdSym = symbolicPlant / (1 + (symbolicController * symbolicPlant));
+    
+    T = sym2tf(TSym);
+    S = sym2tf(SSym);
+    Tc = sym2tf(TcSym);
+    Td = sym2tf(TdSym);
+
+end
+
+function [t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD)
+
+    t = 0:0.001:testPeriod;
+    
+    Kr = referenceAmplitude;
+    Kd = disturbanceAmplitude;
+
+    r = zeros(length(t),1);
+    d = r;
+    
+    mu = 0; % bias
+    sigma = noiseSTD; % std
+    
+    n = normrnd(mu, sigma,[1, length(t)]);
+    
+    r(t > startTime) = Kr;
+    d(t > (startTime + disturbanceDelay)) = - Kd;
+
+end
+
+function calculateAndPrintOutputResponcesForInputSet()
+
+    yr = lsim(T,r,t);
+    printResponsePlot('', t, r, 'Reference Signal' , y, 'OutPut Signal');
+
+    yd = lsim(Td,d,t);
+    printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
+
+    yn = lsim(T,n,t);
+    printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
+
+    y = yr + yd - yn;
+    printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
 end

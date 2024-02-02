@@ -6,128 +6,26 @@ clc
 
 syms s;
 
-plantNum = sym2poly(2.25 * (s + 1) * (s - 2))';
-plantDen = sym2poly(s * (s^2 - 9))';
-
+symbolicPlant = (2.25 * (s + 1) * (s - 2)) / (s * (s^2 - 9));
 
 wantedPoles = [-2 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 6 Poles that we want
 
-Csym = getSymbolicControllerFromPlantWithWantedPoles()
+symbolicController = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant, wantedPoles);
 
-deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
+[T, S, Tc, Td] = getTheGangOfFourFromForwardLoop(symbolicController, symbolicPlant);
 
-Ms = getSylvesterMatrix(plantNum, plantDen);
-Ms1 = getMs1FromMs(Ms);
-Ms2 = getMs2FromMs(Ms);
-Ms3 = getMs3FromMs(Ms);
-
-theta = Ms3 \ deltaS;
-
-plantNum = plantNum';
-plantDen = plantDen';
-theta = theta';
-
-controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
-controllerDen = theta(1:floor(length(theta) / 2));
-
-controllerDen = [controllerDen, 0];
-C = tf(controllerNum, controllerDen);
-
-
-plantNumSym = poly2sym(plantNum', s);
-plantDenSym = poly2sym(plantDen', s);
-PSym = plantNumSym / plantDenSym;
-
-controllerNumSym = poly2sym(controllerNum, s);
-controllerDenSym = poly2sym(controllerDen, s);
-
-CSym = controllerNumSym / controllerDenSym;
-
-TSym = (CSym * PSym) / (1 + (CSym * PSym));
-SSym = 1 / (1 + (CSym * PSym));
-TcSym = CSym / (1 + (CSym * PSym));
-TdSym = PSym / (1 + (CSym * PSym));
-
-T = sym2tf(TSym);
-S = sym2tf(SSym);
-Tc = sym2tf(TcSym);
-Td = sym2tf(TdSym);
-
-t = 0:0.001:10;
-
-Kr = 10;
-Kd = 5;
+testPeriod = 10;
 startTime = 2;
-delayTime = 0.2;
-r = zeros(length(t),1);
-d = r;
+referenceAmplitude = 10;
+disturbanceAmplitude = 2;
+disturbanceDelay = 0.2;
+noiseSTD = 0.5;
 
-mu = 0; % bias
-sigma = 0.5; % std
+[t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD);
 
-n = normrnd(mu, sigma,[1, length(t)]);
+calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
+calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
 
-r(t > startTime) = Kr;
-d(t > (startTime + delayTime)) = - Kd;
-
-figure
-lsim(T,r,t);
-title('y - reference response')
-grid
-yr = lsim(T,r,t);
-
-figure
-lsim(Td,d,t);
-title('y -disturbance response')
-grid
-yd = lsim(Td,d,t);
-
-figure
-lsim(T,n,t);
-title('y - noise response')
-grid
-yn = lsim(T,n,t);
-
-y = yr + yd - yn;
-
-figure
-plot(t,y,t,r);
-grid
-legend('Output', 'Reference');
-title("y = yr + yd - yn")
-xlabel('Time [sec]');
-ylabel('Amplitude')
-
-printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
-
-
-
-figure
-lsim(Tc,r,t);
-title('u - reference response')
-grid
-ur = lsim(Tc,r,t);
-
-figure
-lsim(T,d,t);
-title('u - disturbance response')
-grid
-ud = lsim(T,d,t);
-
-figure
-lsim(Tc,n,t);
-title('u - noise response')
-grid
-un = lsim(Tc,n,t);
-
-u = ur - ud - un;
-
-figure
-plot(t,u);
-grid
-title("u = ur - ud - un")
-xlabel('Time [sec]');
-ylabel('Amplitude')
 %% Problem 5 - SVD
 
 clear all
@@ -365,12 +263,124 @@ function printResponsePlot(titleName, time, input, inputName, output, outputName
     ylabel('Amplitude', 'Interpreter', 'latex', 'FontSize', fontSize);
 
     % Set the DPI (dots per inch) for the exported image
-    dpi = 2000;
+    dpi = 1000;
 
     % Save the plot as a JPG with the title as the filename
     filename = strrep(titleName, ' ', '_'); % Replace spaces with underscores
-    print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
+    % print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
 
 end
 
+function Csym = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant, wantedPoles)
 
+syms s;
+[plantNum, plantDen] = extractCoefficients(symbolicPlant);
+
+plantNum = plantNum';
+plantDen = plantDen';
+
+deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
+
+Ms = getSylvesterMatrix(plantNum, plantDen);
+Ms1 = getMs1FromMs(Ms);
+Ms2 = getMs2FromMs(Ms);
+Ms3 = getMs3FromMs(Ms);
+
+theta = Ms3 \ deltaS;
+
+theta = theta';
+
+controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
+controllerDen = theta(1:floor(length(theta) / 2));
+
+controllerDen = [controllerDen, 0];
+
+controllerNumSym = poly2sym(controllerNum, s);
+controllerDenSym = poly2sym(controllerDen, s);
+
+Csym = controllerNumSym / controllerDenSym;
+
+end
+
+function [numerator, denominator] = extractCoefficients(transferFunction)
+    % Input:
+    %   transferFunction: Symbolic expression representing a transfer function
+    % Output:
+    %   numerator: Coefficients of the numerator
+    %   denominator: Coefficients of the denominator
+
+    % Extract the coefficients of the numerator and denominator
+    [numerator, denominator] = numden(transferFunction);
+
+    % Convert to vectors
+    numerator = sym2poly(numerator);
+    denominator = sym2poly(denominator);
+end
+
+function [T, S, Tc, Td] = getTheGangOfFourFromForwardLoop(symbolicController, symbolicPlant)
+
+    TSym = (symbolicController * symbolicPlant) / (1 + (symbolicController * symbolicPlant));
+    SSym = 1 / (1 + (symbolicController * symbolicPlant));
+    TcSym = symbolicController / (1 + (symbolicController * symbolicPlant));
+    TdSym = symbolicPlant / (1 + (symbolicController * symbolicPlant));
+    
+    T = sym2tf(TSym);
+    S = sym2tf(SSym);
+    Tc = sym2tf(TcSym);
+    Td = sym2tf(TdSym);
+
+end
+
+function [t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD)
+
+    t = 0:0.001:testPeriod;
+    
+    Kr = referenceAmplitude;
+    Kd = disturbanceAmplitude;
+
+    r = zeros(length(t),1);
+    d = r;
+    
+    mu = 0; % bias
+    sigma = noiseSTD; % std
+    
+    n = normrnd(mu, sigma,[1, length(t)]);
+    
+    r(t > startTime) = Kr;
+    d(t > (startTime + disturbanceDelay)) = - Kd;
+
+end
+
+function calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td)
+
+    yr = lsim(T,r,t);
+    printResponsePlot('Output - Reference Response', t, r, 'Reference Signal' , yr, 'OutPut Signal');
+
+    yd = lsim(Td,d,t);
+    printResponsePlot('Output - Disturbance Response', t, d, 'Disturbance Signal' , yd, 'OutPut Signal');
+
+    yn = lsim(T,n,t);
+    printResponsePlot('Output - Noise Response', t, n, 'Noise Signal' , yn, 'OutPut Signal');
+
+    y = yr + yd - yn;
+    printResponsePlot('Output - Total Response', t, r, 'Reference Signal' , y, ' Total OutPut Signal');
+end
+
+function calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
+
+    ur = lsim(Tc,r,t);
+    printResponsePlot('Controller - Reference Response', t, r, 'Reference Signal' , ur, 'Controller Signal');
+
+    ud = lsim(T,d,t);
+    printResponsePlot('Controller - Disturbance Response', t, d, 'Disturbance Signal' , ud, 'Controller Signal');
+
+    un = lsim(Tc,n,t);
+    printResponsePlot('Controller - Noise Response', t, n, 'Noise Signal' , un, 'Controller Signal');
+
+    u = ur - ud - un;
+    printResponsePlot('Controller - Total Controller Response', t, r, 'Reference Signal' , u, 'Total Controller Signal');
+
+    uwon = ur - ud;
+    printResponsePlot('Controller - Total Controller Response (Without Noise)', t, r, 'Reference Signal' , uwon, 'Total Controller Signal');
+
+end
