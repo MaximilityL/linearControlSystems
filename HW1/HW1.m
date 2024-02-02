@@ -1,3 +1,5 @@
+%% Q1 - LTI Controller
+
 clear all
 close all
 clc
@@ -6,12 +8,13 @@ set(0,'DefaultTextInterpreter','latex');
 set(0,'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 set(0, 'DefaultLineLineWidth', 1.2);
+% Increase font size for titles and labels
+titleFontSize = 3;  % Adjust the desired font size
+labelFontSize = 2;  % Adjust the desired font size for labels
+set(0, 'DefaultAxesTitleFontSize', titleFontSize);
+set(0, 'DefaultAxesLabelFontSize', labelFontSize);
+legendFontSize = 12; % Adjust the desired font size for legend
 
-%% Q1 - LTI Controller
-
-clear all
-close all
-clc
 
 syms s;
 
@@ -19,7 +22,7 @@ plantNum = sym2poly(2.25 * (s + 1) * (s - 2))';
 plantDen = sym2poly(s * (s^2 - 9))';
 
 
-wantedPoles = [-10 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 5 Poles that we want
+wantedPoles = [-2 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 6 Poles that we want
 
 deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
 
@@ -38,55 +41,126 @@ controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
 controllerDen = theta(1:floor(length(theta) / 2));
 
 P = tf(plantNum, plantDen);
-C = tf(controllerNum, [controllerDen, 0]);
+controllerDen = [controllerDen, 0];
+C = tf(controllerNum, controllerDen);
 
+%%%
 
+plantNumSym = poly2sym(plantNum', s);
+plantDenSym = poly2sym(plantDen', s);
+PSym = plantNumSym / plantDenSym;
 
-T = (P * C) / (1 + (P * C));
-S = 1 / (1 + (P * C));
-Tc = C / (1 + (P * C));
-Td = P / (1 + (P * C));
+controllerNumSym = poly2sym(controllerNum, s);
+controllerDenSym = poly2sym(controllerDen, s);
 
+CSym = controllerNumSym / controllerDenSym;
+
+TSym = (CSym * PSym) / (1 + (CSym * PSym));
+SSym = 1 / (1 + (CSym * PSym));
+TcSym = CSym / (1 + (CSym * PSym));
+TdSym = PSym / (1 + (CSym * PSym));
+
+T = sym2tf(TSym);
+S = sym2tf(SSym);
+Tc = sym2tf(TcSym);
+Td = sym2tf(TdSym);
 
 t = 0:0.001:10;
 
-Kr = 1;
-Kd = 0.2;
+Kr = 10;
+Kd = 5;
 startTime = 2;
-delayTime = 0.1;
+delayTime = 0.2;
 r = zeros(length(t),1);
 d = r;
-smallSinus = 0.1*sin(t);
-n = awgn(smallSinus,10,'measured');
+
+mu = 0; % bias
+sigma = 0.5; % std
+
+n = normrnd(mu, sigma,[1, length(t)]);
 
 r(t > startTime) = Kr;
 d(t > (startTime + delayTime)) = - Kd;
 
+figure
+lsim(T,r,t);
+title('y - reference response')
+grid
 yr = lsim(T,r,t);
+
+figure
+lsim(Td,d,t);
+title('y -disturbance response')
+grid
 yd = lsim(Td,d,t);
+
+figure
+lsim(T,n,t);
+title('y - noise response')
+grid
 yn = lsim(T,n,t);
 
 y = yr + yd - yn;
 
 figure
-plot(t,yn);
+plot(t,y,t,r);
+grid
+legend('Output', 'Reference');
+title("y = yr + yd - yn")
+xlabel('Time [sec]');
+ylabel('Amplitude')
+set(gcf, 'Color', 'w');
 
-L = P*C;
-sys = feedback(L,1);
+
+
+
 figure
-step (T);
-
-yr = lsim(sys,r,t);
+lsim(Tc,r,t);
+title('u - reference response')
+grid
+ur = lsim(Tc,r,t);
 
 figure
-plot(t,yd);
+lsim(T,d,t);
+title('u - disturbance response')
+grid
+ud = lsim(T,d,t);
+
+figure
+lsim(Tc,n,t);
+title('u - noise response')
+grid
+un = lsim(Tc,n,t);
+
+u = ur - ud - un;
+
+figure
+plot(t,u);
+grid
+title("u = ur - ud - un")
+xlabel('Time [sec]');
+ylabel('Amplitude')
 %% Problem 5 - SVD
 
 clear all
 close all
 clc
 
+
+set(0,'DefaultTextInterpreter','latex');
+set(0,'defaultAxesTickLabelInterpreter','latex');
+set(groot, 'defaultLegendInterpreter','latex');
+set(0, 'DefaultLineLineWidth', 1.2);
+% Increase font size for titles and labels
+titleFontSize = 2;  % Adjust the desired font size
+labelFontSize = 1.5;  % Adjust the desired font size for labels
+set(0, 'DefaultAxesTitleFontSize', titleFontSize);
+set(0, 'DefaultAxesLabelFontSize', labelFontSize);
+
+
 display('Problem 5 - SVD')
+
+
 % Provided plant
 P = [12, 19;
      8, 21];
@@ -254,4 +328,45 @@ function Ms3 = getMs3FromMs(Ms)
     Ms3(:,n - 1) = [];
 end
 
-% function deltaS = getCharectaristicVector
+function G = sym2tf(g)
+    %SYM2TF - Symbolic Transfer Function to Numerical Transfer Function
+    %conversion
+    %
+    % Syntax:  G = sym2tf(g)
+    %
+    % Inputs:
+    %    g - Symbolic Transfer Function representation
+    %
+    % Outputs:
+    %    G - Numeric Transfer Function representation
+    %
+    % Example: 
+    %    syms p
+    %    g11=(p + 2)/(p^2 + 2*p + 1);
+    %    g12=(p - 1)/(p^2 + 5*p + 6);
+    %    g21=(p - 1)/(p^2 + 3*p + 2);
+    %    g22=(p + 2)/(p + 1);
+    %    g=[g11 g12; g21 g22];
+    %    G=sym2tf(g)
+    %
+    % See also: tf2sym, ss2sym
+    %
+    % Author: Oskar Vivero Osornio
+    % email: oskar.vivero@gmail.com
+    % Created: February 2006; 
+    % Last revision: 25-March-2006;
+    % May be distributed freely for non-commercial use, 
+    % but please leave the above info unchanged, for
+    % credit and feedback purposes
+    %------------- BEGIN CODE -------------
+    [n,m]=size(g);
+    for i=1:n
+        for j=1:m
+            [num,den]=numden(g(i,j));
+            num_n=sym2poly(num);
+            den_n=sym2poly(den);
+            G(i,j)=tf(num_n,den_n);
+        end
+    end
+    %------------- END OF CODE --------------
+end
