@@ -4,18 +4,6 @@ clear all
 close all
 clc
 
-set(0,'DefaultTextInterpreter','latex');
-set(0,'defaultAxesTickLabelInterpreter','latex');
-set(groot, 'defaultLegendInterpreter','latex');
-set(0, 'DefaultLineLineWidth', 1.2);
-% Increase font size for titles and labels
-titleFontSize = 3;  % Adjust the desired font size
-labelFontSize = 2;  % Adjust the desired font size for labels
-set(0, 'DefaultAxesTitleFontSize', titleFontSize);
-set(0, 'DefaultAxesLabelFontSize', labelFontSize);
-legendFontSize = 12; % Adjust the desired font size for legend
-
-
 syms s;
 
 plantNum = sym2poly(2.25 * (s + 1) * (s - 2))';
@@ -23,6 +11,8 @@ plantDen = sym2poly(s * (s^2 - 9))';
 
 
 wantedPoles = [-2 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 6 Poles that we want
+
+Csym = getSymbolicControllerFromPlantWithWantedPoles()
 
 deltaS = sym2poly((s - wantedPoles(1)) * (s - wantedPoles(2)) * (s - wantedPoles(3)) * (s - wantedPoles(4)) * (s - wantedPoles(5)) * (s - wantedPoles(6)))';
 
@@ -40,11 +30,9 @@ theta = theta';
 controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
 controllerDen = theta(1:floor(length(theta) / 2));
 
-P = tf(plantNum, plantDen);
 controllerDen = [controllerDen, 0];
 C = tf(controllerNum, controllerDen);
 
-%%%
 
 plantNumSym = poly2sym(plantNum', s);
 plantDenSym = poly2sym(plantDen', s);
@@ -109,8 +97,8 @@ legend('Output', 'Reference');
 title("y = yr + yd - yn")
 xlabel('Time [sec]');
 ylabel('Amplitude')
-set(gcf, 'Color', 'w');
 
+printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
 
 
 
@@ -145,18 +133,6 @@ ylabel('Amplitude')
 clear all
 close all
 clc
-
-
-set(0,'DefaultTextInterpreter','latex');
-set(0,'defaultAxesTickLabelInterpreter','latex');
-set(groot, 'defaultLegendInterpreter','latex');
-set(0, 'DefaultLineLineWidth', 1.2);
-% Increase font size for titles and labels
-titleFontSize = 2;  % Adjust the desired font size
-labelFontSize = 1.5;  % Adjust the desired font size for labels
-set(0, 'DefaultAxesTitleFontSize', titleFontSize);
-set(0, 'DefaultAxesLabelFontSize', labelFontSize);
-
 
 display('Problem 5 - SVD')
 
@@ -370,3 +346,31 @@ function G = sym2tf(g)
     end
     %------------- END OF CODE --------------
 end
+
+function printResponsePlot(titleName, time, input, inputName, output, outputName)
+
+    % Create a figure and set it to full screen
+    hFig = figure('Position', get(0, 'Screensize'));
+
+    plot(time, input, 'Color', [0.5, 0.5, 0.5]); % Gray color for input
+    hold on;
+    plot(time, output, 'Color', [0, 0, 1]);        % Blue color for output
+    hold off;
+
+    grid;
+    fontSize = 20;
+    legend({inputName, outputName}, 'Interpreter', 'latex', 'FontSize', fontSize);
+    title(titleName, 'Interpreter', 'latex', 'FontSize', fontSize);
+    xlabel('Time [sec]', 'Interpreter', 'latex', 'FontSize', fontSize);
+    ylabel('Amplitude', 'Interpreter', 'latex', 'FontSize', fontSize);
+
+    % Set the DPI (dots per inch) for the exported image
+    dpi = 2000;
+
+    % Save the plot as a JPG with the title as the filename
+    filename = strrep(titleName, ' ', '_'); % Replace spaces with underscores
+    print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
+
+end
+
+

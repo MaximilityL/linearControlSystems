@@ -4,13 +4,7 @@ clear all
 close all
 clc
 
-set(0,'DefaultTextInterpreter','latex');
-set(0,'defaultAxesTickLabelInterpreter','latex');
-set(groot, 'defaultLegendInterpreter','latex');
-set(0, 'DefaultLineLineWidth', 1.2);
-titleFontSize = 2;  % Adjust the desired font size
-set(0, 'DefaultAxesTitleFontSize', titleFontSize);
-
+initGraphSettings();
 
 syms s;
 
@@ -36,11 +30,9 @@ theta = theta';
 controllerNum = theta(floor((length(theta)) / 2) + 1:length(theta));
 controllerDen = theta(1:floor(length(theta) / 2));
 
-P = tf(plantNum, plantDen);
 controllerDen = [controllerDen, 0];
 C = tf(controllerNum, controllerDen);
 
-%%%
 
 plantNumSym = poly2sym(plantNum', s);
 plantDenSym = poly2sym(plantDen', s);
@@ -101,10 +93,11 @@ y = yr + yd - yn;
 figure
 plot(t,y,t,r);
 grid
-legend
+legend('Output', 'Reference');
 title("y = yr + yd - yn")
 xlabel('Time [sec]');
 ylabel('Amplitude')
+
 
 
 
@@ -146,8 +139,11 @@ set(0,'DefaultTextInterpreter','latex');
 set(0,'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 set(0, 'DefaultLineLineWidth', 1.2);
-titleFontSize = 16;  % Adjust the desired font size
+% Increase font size for titles and labels
+titleFontSize = 2;  % Adjust the desired font size
+labelFontSize = 1.5;  % Adjust the desired font size for labels
 set(0, 'DefaultAxesTitleFontSize', titleFontSize);
+set(0, 'DefaultAxesLabelFontSize', labelFontSize);
 
 
 display('Problem 5 - SVD')
@@ -361,4 +357,32 @@ function G = sym2tf(g)
         end
     end
     %------------- END OF CODE --------------
+end
+
+
+function initGraphSettings()
+    set(0,'DefaultTextInterpreter','latex');
+    set(0,'defaultAxesTickLabelInterpreter','latex');
+    set(groot, 'defaultLegendInterpreter','latex');
+    set(0, 'DefaultLineLineWidth', 1.2);
+    % Increase font size for titles and labels
+    titleFontSize = 3;  % Adjust the desired font size
+    labelFontSize = 2;  % Adjust the desired font size for labels
+    set(0, 'DefaultAxesTitleFontSize', titleFontSize);
+    set(0, 'DefaultAxesLabelFontSize', labelFontSize);
+    % Set the background color of the plot to white
+    set(0, 'DefaultFigureColor', 'w');
+end
+
+
+function printResponsePlot(titleName,xLabelName,yLabelName,)
+    legendFontSize = 2;
+
+
+
+
+
+    set(gca, 'FontSize', legendFontSize);
+
+
 end
