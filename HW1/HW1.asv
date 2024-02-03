@@ -21,9 +21,76 @@ symbolicController = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant
 calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
 calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
 
-% close all
-% C = sym2tf(symbolicController);
-% P = sym2tf(symbolicPlant);
+%% Problem 3 - Spectral Norm
+clear all
+close all
+clc
+
+display('Problem 3 - Spectral Norm');
+
+
+display('First Case');
+A1 = [0.1, 0.1;
+      0.2, 0.2];
+
+display('A1 Norm is: ');
+A1Norm = norm(A1,2);
+disp(A1Norm);
+
+A2 = [0.2, 0.2;
+      0.3, 0.3]; 
+
+display('A2 Norm is: ')
+A2Norm = norm(A2,2);
+disp(A2Norm);
+
+M = [A1; A2];
+display('M=[A1;A2] Norm is: ')
+MNorm = norm(M,2);
+disp(MNorm);
+
+display('Second Case');
+A1 = [0.6, 0.6;
+      0.1, 0.1];
+
+display('A1 Norm is: ');
+A1Norm = norm(A1,2);
+disp(A1Norm);
+
+A2 = [0.3, 0.3;
+      0.4, 0.4]; 
+
+display('A2 Norm is: ')
+A2Norm = norm(A2,2);
+disp(A2Norm);
+
+M = [A1; A2];
+display('M=[A1;A2] Norm is: ')
+MNorm = norm(M,2);
+disp(MNorm);
+
+%% Problem 4 - Maximal Or Minimal Acheivable
+clear all
+close all
+clc
+
+display('Problem 4 - Maximal Or Minimal Acheivable');
+
+G = [-4, 2, 2;
+      2, 1, 0];
+
+T= [0.5, 0, 0;
+     0,  1,  0;
+      0,  0,  3];
+
+Gtilde = G*T;
+
+disp('The system Gtilde is: ');
+disp(Gtilde);
+
+M = G'*G;
+
+
 %% Problem 5 - SVD
 
 clear all
@@ -245,11 +312,23 @@ end
 
 function printResponsePlot(titleName, time, input, inputName, output, outputName)
 
+    % Counter for the number of prints
+    persistent printCounter;
+    if isempty(printCounter)
+        printCounter = 0;
+    end
+    printCounter = printCounter + 1;
+
     % Create a figure and set it to half of the screen size
     screenSize = get(0, 'Screensize');
     halfScreenWidth = screenSize(3) / 2;
     halfScreenHeight = screenSize(4) / 2;
-    hFifigure('Position', [screenSize(1), screenSize(2), halfScreenWidth, halfScreenHeight]);
+    hFig = figure('Position', [screenSize(1), screenSize(2), halfScreenWidth, halfScreenHeight]);
+
+    plot(time, input, 'Color', [0.5, 0.5, 0.5]); % Gray color for input
+    hold on;
+    plot(time, output, 'Color', [0, 0, 1]);        % Blue color for output
+    hold off;
 
     grid;
     fontSize = 20;
@@ -258,16 +337,17 @@ function printResponsePlot(titleName, time, input, inputName, output, outputName
     xlabel('Time [sec]', 'Interpreter', 'latex', 'FontSize', fontSize);
     ylabel('Amplitude', 'Interpreter', 'latex', 'FontSize', fontSize);
     % Set the background color of the plot to white
-    set(gcf, 'Color', 'w');
+    set(hFig, 'Color', 'w');
 
     % Set the DPI (dots per inch) for the exported image
     dpi = 1000;
 
-    % Save the plot as a JPG with the title as the filename
-    filename = strrep(titleName, ' ', '_'); % Replace spaces with underscores
+    % Save the plot as a JPG with the title and print count as the filename
+    filename = sprintf('%s_Print%d', strrep(titleName, ' ', '_'), printCounter);
     % print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
 
 end
+
 
 
 

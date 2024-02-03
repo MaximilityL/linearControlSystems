@@ -21,6 +21,75 @@ symbolicController = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant
 calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
 calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
 
+%% Problem 3 - Spectral Norm
+clear all
+close all
+clc
+
+display('Problem 3 - Spectral Norm');
+
+
+display('First Case');
+A1 = [0.1, 0.1;
+      0.2, 0.2];
+
+display('A1 Norm is: ');
+A1Norm = norm(A1,2);
+disp(A1Norm);
+
+A2 = [0.2, 0.2;
+      0.3, 0.3]; 
+
+display('A2 Norm is: ')
+A2Norm = norm(A2,2);
+disp(A2Norm);
+
+M = [A1; A2];
+display('M=[A1;A2] Norm is: ')
+MNorm = norm(M,2);
+disp(MNorm);
+
+display('Second Case');
+A1 = [0.6, 0.6;
+      0.1, 0.1];
+
+display('A1 Norm is: ');
+A1Norm = norm(A1,2);
+disp(A1Norm);
+
+A2 = [0.3, 0.3;
+      0.4, 0.4]; 
+
+display('A2 Norm is: ')
+A2Norm = norm(A2,2);
+disp(A2Norm);
+
+M = [A1; A2];
+display('M=[A1;A2] Norm is: ')
+MNorm = norm(M,2);
+disp(MNorm);
+
+%% Problem 4 - Maximal Or Minimal Acheivable
+clear all
+close all
+clc
+
+display('Problem 4 - Maximal Or Minimal Acheivable');
+
+G = [-4, 2, 2;
+      2, 1, 0];
+
+T= [0.5, 0, 0;
+     0,  1,  0;
+      0,  0,  3];
+
+Gtilde = G*T;
+
+disp('The system Gtilde is: ');
+disp(Gtilde);
+
+GEigenValues=eig(G'*G);
+GSquaredEigenValues = sqrt(GEigenValues);
 %% Problem 5 - SVD
 
 clear all
@@ -274,7 +343,7 @@ function printResponsePlot(titleName, time, input, inputName, output, outputName
 
     % Save the plot as a JPG with the title and print count as the filename
     filename = sprintf('%s_Print%d', strrep(titleName, ' ', '_'), printCounter);
-    print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
+    % print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
 
 end
 
