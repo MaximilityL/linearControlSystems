@@ -14,12 +14,7 @@ symbolicController = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant
 
 [T, S, Tc, Td] = getTheGangOfFourFromForwardLoop(symbolicController, symbolicPlant);
 
-testPeriod = 10;
-startTime = 2;
-referenceAmplitude = 10;
-disturbanceAmplitude = 2;
-disturbanceDelay = 0.2;
-noiseSTD = 0.5;
+[testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD] = initSettings(10, 2, 10, 2, 0.2, 0.5);
 
 [t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD);
 
@@ -247,8 +242,18 @@ end
 
 function printResponsePlot(titleName, time, input, inputName, output, outputName)
 
-    % Create a figure and set it to full screen
-    hFig = figure('Position', get(0, 'Screensize'));
+    % Counter for the number of prints
+    persistent printCounter;
+    if isempty(printCounter)
+        printCounter = 0;
+    end
+    printCounter = printCounter + 1;
+
+    % Create a figure and set it to half of the screen size
+    screenSize = get(0, 'Screensize');
+    halfScreenWidth = screenSize(3) / 2;
+    halfScreenHeight = screenSize(4) / 2;
+    hFig = figure('Position', [screenSize(1), screenSize(2), halfScreenWidth, halfScreenHeight]);
 
     plot(time, input, 'Color', [0.5, 0.5, 0.5]); % Gray color for input
     hold on;
@@ -261,15 +266,20 @@ function printResponsePlot(titleName, time, input, inputName, output, outputName
     title(titleName, 'Interpreter', 'latex', 'FontSize', fontSize);
     xlabel('Time [sec]', 'Interpreter', 'latex', 'FontSize', fontSize);
     ylabel('Amplitude', 'Interpreter', 'latex', 'FontSize', fontSize);
+    % Set the background color of the plot to white
+    set(hFig, 'Color', 'w');
 
     % Set the DPI (dots per inch) for the exported image
     dpi = 1000;
 
-    % Save the plot as a JPG with the title as the filename
-    filename = strrep(titleName, ' ', '_'); % Replace spaces with underscores
-    % print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
+    % Save the plot as a JPG with the title and print count as the filename
+    filename = sprintf('%s_Print%d', strrep(titleName, ' ', '_'), printCounter);
+    print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
 
 end
+
+
+
 
 function Csym = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant, wantedPoles)
 
@@ -364,6 +374,10 @@ function calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td)
 
     y = yr + yd - yn;
     printResponsePlot('Output - Total Response', t, r, 'Reference Signal' , y, ' Total OutPut Signal');
+    
+    ywon = yr + yd;
+    printResponsePlot('Output - Total Response (Without Noise)', t, r, 'Reference Signal' , ywon, ' Total OutPut Signal');
+
 end
 
 function calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
@@ -384,3 +398,12 @@ function calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, T
     printResponsePlot('Controller - Total Controller Response (Without Noise)', t, r, 'Reference Signal' , uwon, 'Total Controller Signal');
 
 end
+
+function [testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD] = initSettings(testPeriodValue, startTimeValue, referenceAmplitudeValue, disturbanceAmplitudeValue, disturbanceDelayValue, noiseSTDValue)
+    testPeriod = testPeriodValue;
+    startTime = startTimeValue;
+    referenceAmplitude = referenceAmplitudeValue;
+    disturbanceAmplitude = disturbanceAmplitudeValue;
+    disturbanceDelay = disturbanceDelayValue;
+    noiseSTD = noiseSTDValue;
+end 

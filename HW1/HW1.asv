@@ -6,9 +6,6 @@ clc
 
 syms s;
 
-plantNum = sym2poly(2.25 * (s + 1) * (s - 2))';
-plantDen = sym2poly(s * (s^2 - 9))';
-
 symbolicPlant = (2.25 * (s + 1) * (s - 2)) / (s * (s^2 - 9));
 
 wantedPoles = [-2 , -20, -5 + i, -5 - i, -2 + 3*i , -2 - 3*i]; % 6 Poles that we want
@@ -17,75 +14,16 @@ symbolicController = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant
 
 [T, S, Tc, Td] = getTheGangOfFourFromForwardLoop(symbolicController, symbolicPlant);
 
-testPeriod = 10;
-startTime = 2;
-referenceAmplitude = 10;
-disturbanceAmplitude = 2;
-disturbanceDelay = 0.2;
-noiseSTD = 0.5;
+[testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD] = initSettings(10, 2, 10, 2, 0.2, 0.5);
 
 [t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD);
 
-calculateAndPrintOutputResponcesForInputSet()
+calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
+calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
 
-figure
-lsim(T,r,t);
-title('y - reference response')
-grid
-yr = lsim(T,r,t);
-
-figure
-lsim(Td,d,t);
-title('y -disturbance response')
-grid
-yd = lsim(Td,d,t);
-
-figure
-lsim(T,n,t);
-title('y - noise response')
-grid
-yn = lsim(T,n,t);
-
-y = yr + yd - yn;
-
-figure
-plot(t,y,t,r);
-grid
-legend('Output', 'Reference');
-title("y = yr + yd - yn")
-xlabel('Time [sec]');
-ylabel('Amplitude')
-
-printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
-
-
-
-figure
-lsim(Tc,r,t);
-title('u - reference response')
-grid
-ur = lsim(Tc,r,t);
-
-figure
-lsim(T,d,t);
-title('u - disturbance response')
-grid
-ud = lsim(T,d,t);
-
-figure
-lsim(Tc,n,t);
-title('u - noise response')
-grid
-un = lsim(Tc,n,t);
-
-u = ur - ud - un;
-
-figure
-plot(t,u);
-grid
-title("u = ur - ud - un")
-xlabel('Time [sec]');
-ylabel('Amplitude')
+% close all
+% C = sym2tf(symbolicController);
+% P = sym2tf(symbolicPlant);
 %% Problem 5 - SVD
 
 clear all
@@ -307,13 +245,11 @@ end
 
 function printResponsePlot(titleName, time, input, inputName, output, outputName)
 
-    % Create a figure and set it to full screen
-    hFig = figure('Position', get(0, 'Screensize'));
-
-    plot(time, input, 'Color', [0.5, 0.5, 0.5]); % Gray color for input
-    hold on;
-    plot(time, output, 'Color', [0, 0, 1]);        % Blue color for output
-    hold off;
+    % Create a figure and set it to half of the screen size
+    screenSize = get(0, 'Screensize');
+    halfScreenWidth = screenSize(3) / 2;
+    halfScreenHeight = screenSize(4) / 2;
+    hFifigure('Position', [screenSize(1), screenSize(2), halfScreenWidth, halfScreenHeight]);
 
     grid;
     fontSize = 20;
@@ -321,15 +257,19 @@ function printResponsePlot(titleName, time, input, inputName, output, outputName
     title(titleName, 'Interpreter', 'latex', 'FontSize', fontSize);
     xlabel('Time [sec]', 'Interpreter', 'latex', 'FontSize', fontSize);
     ylabel('Amplitude', 'Interpreter', 'latex', 'FontSize', fontSize);
+    % Set the background color of the plot to white
+    set(gcf, 'Color', 'w');
 
     % Set the DPI (dots per inch) for the exported image
     dpi = 1000;
 
     % Save the plot as a JPG with the title as the filename
     filename = strrep(titleName, ' ', '_'); % Replace spaces with underscores
-    print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
+    % print(hFig, filename, '-djpeg', ['-r', num2str(dpi)]);
 
 end
+
+
 
 function Csym = getSymbolicControllerFromPlantWithWantedPoles(symbolicPlant, wantedPoles)
 
@@ -411,17 +351,49 @@ function [t, r, d, n] = getInputsFromSettings(testPeriod, startTime, referenceAm
 
 end
 
-function calculateAndPrintOutputResponcesForInputSet()
+function calculateAndPrintOutputResponcesForInputSet(t, r, d, n, T, S, Tc, Td)
 
     yr = lsim(T,r,t);
-    printResponsePlot('', t, r, 'Reference Signal' , y, 'OutPut Signal');
+    printResponsePlot('Output - Reference Response', t, r, 'Reference Signal' , yr, 'OutPut Signal');
 
     yd = lsim(Td,d,t);
-    printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
+    printResponsePlot('Output - Disturbance Response', t, d, 'Disturbance Signal' , yd, 'OutPut Signal');
 
     yn = lsim(T,n,t);
-    printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
+    printResponsePlot('Output - Noise Response', t, n, 'Noise Signal' , yn, 'OutPut Signal');
 
     y = yr + yd - yn;
-    printResponsePlot('Entire Output', t, r, 'Reference Signal' , y, 'OutPut Signal');
+    printResponsePlot('Output - Total Response', t, r, 'Reference Signal' , y, ' Total OutPut Signal');
+    
+    ywon = yr + yd;
+    printResponsePlot('Output - Total Response (Without Noise)', t, r, 'Reference Signal' , ywon, ' Total OutPut Signal');
+
 end
+
+function calculateAndPrintControllerResponcesForInputSet(t, r, d, n, T, S, Tc, Td);
+
+    ur = lsim(Tc,r,t);
+    printResponsePlot('Controller - Reference Response', t, r, 'Reference Signal' , ur, 'Controller Signal');
+
+    ud = lsim(T,d,t);
+    printResponsePlot('Controller - Disturbance Response', t, d, 'Disturbance Signal' , ud, 'Controller Signal');
+
+    un = lsim(Tc,n,t);
+    printResponsePlot('Controller - Noise Response', t, n, 'Noise Signal' , un, 'Controller Signal');
+
+    u = ur - ud - un;
+    printResponsePlot('Controller - Total Controller Response', t, r, 'Reference Signal' , u, 'Total Controller Signal');
+
+    uwon = ur - ud;
+    printResponsePlot('Controller - Total Controller Response (Without Noise)', t, r, 'Reference Signal' , uwon, 'Total Controller Signal');
+
+end
+
+function [testPeriod, startTime, referenceAmplitude, disturbanceAmplitude, disturbanceDelay, noiseSTD] = initSettings(testPeriodValue, startTimeValue, referenceAmplitudeValue, disturbanceAmplitudeValue, disturbanceDelayValue, noiseSTDValue)
+    testPeriod = testPeriodValue;
+    startTime = startTimeValue;
+    referenceAmplitude = referenceAmplitudeValue;
+    disturbanceAmplitude = disturbanceAmplitudeValue;
+    disturbanceDelay = disturbanceDelayValue;
+    noiseSTD = noiseSTDValue;
+end 
